@@ -14,14 +14,15 @@ function WorkspaceIndicator() {
 }
 
 WorkspaceIndicator.prototype = {
-	__proto__: PanelMenu.SystemStatusButton.prototype,
+	__proto__: PanelMenu.Button.prototype,
 
 	_init: function(){
-		PanelMenu.SystemStatusButton.prototype._init.call(this, 'folder');
+		PanelMenu.Button.prototype._init.call(this, 0.0);
 
 	        this._currentWorkspace = global.screen.get_active_workspace().index();
+
 		this.statusLabel = new St.Label({ text: this._labelText() });
-		this.actor.set_child(this.statusLabel);
+		this.actor.add_actor(this.statusLabel);
 
 		this.workspacesItems = [];
 		this._workspaceSection = new PopupMenu.PopupMenuSection();
@@ -94,14 +95,13 @@ WorkspaceIndicator.prototype = {
 }
 
 function init(meta) {
-    Panel.STANDARD_TRAY_ICON_ORDER.unshift('workspace-indicator');
 }
 
 let _indicator;
 
 function enable() {
     _indicator = new WorkspaceIndicator;
-    Main.panel.addToStatusArea('workspace-indicator', _indicator);
+    Main.panel.addToStatusArea('workspace-indicator', _indicator, 0);
 }
 
 function disable() {
