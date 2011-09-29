@@ -70,3 +70,10 @@ ThemeManager.prototype = {
 function init(metadata) {
     return new ThemeManager();
 }
+
+function enable() {
+}
+
+function disable() {
+}
+
