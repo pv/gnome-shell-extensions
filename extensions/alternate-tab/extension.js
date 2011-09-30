@@ -34,7 +34,7 @@ const MODES = {
         Main.wm._startAppSwitcher(shellwm, binding, mask, window, backwards);
     },
     all_thumbnails: function(shellwm, binding, mask, window, backwards) {
-        new AltTabPopup2(shellwm, binding, mask, window, backwards);
+        new AltTabPopup2();
     },
     workspace_icons: function(shellwm, binding, mask, window, backwards) {
         let tabPopup = new AltTabPopupW();
