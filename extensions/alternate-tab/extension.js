@@ -30,14 +30,16 @@ const SETTINGS_BEHAVIOUR_KEY = 'behaviour';
 const SETTINGS_FIRST_TIME_KEY = 'first-time';
 
 const MODES = {
-    native: function() {
-            Main.wm._startAppSwitcher();
+    native: function(shellwm, binding, mask, window, backwards) {
+        Main.wm._startAppSwitcher(shellwm, binding, mask, window, backwards);
     },
-    all_thumbnails: function() {
-            new AltTabPopup2();
+    all_thumbnails: function(shellwm, binding, mask, window, backwards) {
+        new AltTabPopup2(shellwm, binding, mask, window, backwards);
     },
-    workspace_icons: function() {
-            new AltTabPopupW().show();
+    workspace_icons: function(shellwm, binding, mask, window, backwards) {
+        let tabPopup = new AltTabPopupW();
+        if (!tabPopup.show(backwards, binding, mask))
+            tabPopup.destroy();
     }
 };
 
@@ -68,9 +70,9 @@ function AltTabPopupW() {
 AltTabPopupW.prototype = {
     __proto__ : AltTab.AltTabPopup.prototype,
 
-    show : function(backward, switch_group) {
-        let tracker = Shell.WindowTracker.get_default();
-        let apps = tracker.get_running_apps ('');
+    show : function(backward, binding, mask) {
+        let appSys = Shell.AppSystem.get_default();
+        let apps = appSys.get_running ();
 
         if (!apps.length)
             return false;
@@ -78,6 +80,7 @@ AltTabPopupW.prototype = {
         if (!Main.pushModal(this.actor))
             return false;
         this._haveModal = true;
+        this._modifierMask = AltTab.primaryModifier(mask);
 
         this.actor.connect('key-press-event', Lang.bind(this, this._keyPressEvent));
         this.actor.connect('key-release-event', Lang.bind(this, this._keyReleaseEvent));
@@ -92,8 +95,14 @@ AltTabPopupW.prototype = {
 
         this._appIcons = this._appSwitcher.icons;
 
+        // Need to force an allocation so we can figure out whether we
+        // need to scroll when selecting
+        this.actor.opacity = 0;
+        this.actor.show();
+        this.actor.get_allocation_box();
+
         // Make the initial selection
-        if (switch_group) {
+        if (binding == 'switch_group') {
             if (backward) {
                 this._select(0, this._appIcons[0].cachedWindows.length - 1);
             } else {
@@ -102,6 +111,10 @@ AltTabPopupW.prototype = {
                 else
                     this._select(0, 0);
             }
+        } else if (binding == 'switch_group_backward') {
+            this._select(0, this._appIcons[0].cachedWindows.length - 1);
+        } else if (binding == 'switch_windows_backward') {
+            this._select(this._appIcons.length - 1);
         } else if (this._appIcons.length == 1) {
             this._select(0);
         } else if (backward) {
@@ -116,36 +129,34 @@ AltTabPopupW.prototype = {
         // details.) So we check now. (Have to do this after updating
         // selection.)
         let [x, y, mods] = global.get_pointer();
-        if (!(mods & Gdk.ModifierType.MOD1_MASK)) {
+        if (!(mods & this._modifierMask)) {
             this._finish();
             return false;
         }
 
-        this.actor.opacity = 0;
-        this.actor.show();
-        Tweener.addTween(this.actor,
-                         { opacity: 255,
-                           time: POPUP_FADE_TIME,
-                           transition: 'easeOutQuad'
-                         });
+        // We delay showing the popup so that fast Alt+Tab users aren't
+        // disturbed by the popup briefly flashing.
+        this._initialDelayTimeoutId = Mainloop.timeout_add(AltTab.POPUP_DELAY_TIMEOUT,
+                                                           Lang.bind(this, function () {
+                                                               this.actor.opacity = 255;
+                                                               this._initialDelayTimeoutId = 0;
+                                                           }));
 
         return true;
     },
-
 
     _finish : function() {
         let app = this._appIcons[this._currentApp];
         Main.activateWindow(app.cachedWindows[0]);
         this.destroy();
     }
-
 };
 
-function AppIcon(app, window) {
+function WindowIcon(app, window) {
     this._init(app, window);
 }
 
-AppIcon.prototype = {
+WindowIcon.prototype = {
     __proto__ : AltTab.AppIcon.prototype,
 
     _init: function(app, window) {
@@ -195,7 +206,7 @@ WindowSwitcher.prototype = {
             let windows = apps[i].get_windows();
 
             for(let j = 0; j < windows.length; j++) {
-                let appIcon = new AppIcon(apps[i], windows[j]);
+                let appIcon = new WindowIcon(apps[i], windows[j]);
                 if (this._isWindowOnWorkspace(windows[j], activeWorkspace)) {
                   workspaceIcons.push(appIcon);
                 }
@@ -208,7 +219,7 @@ WindowSwitcher.prototype = {
         workspaceIcons.sort(Lang.bind(this, this._sortAppIcon));
         otherIcons.sort(Lang.bind(this, this._sortAppIcon));
 
-        if(otherIcons.length > 0) {
+        if (otherIcons.length > 0) {
             let mostRecentOtherIcon = otherIcons[0];
             otherIcons = [];
             otherIcons.push(mostRecentOtherIcon);
@@ -231,8 +242,8 @@ WindowSwitcher.prototype = {
 
 
     _isWindowOnWorkspace: function(w, workspace) {
-            if (w.get_workspace() == workspace)
-                return true;
+        if (w.get_workspace() == workspace)
+            return true;
         return false;
     },
 
@@ -541,19 +552,26 @@ WindowList.prototype = {
     }
 };
 
+
+/* -----------------------------------------------------------------------------------------
+ *
+ * Extension basics
+ *
+ * -----------------------------------------------------------------------------------------
+ */
+
 function init(metadata) {
     imports.gettext.bindtextdomain('gnome-shell-extensions', metadata.localedir);
 }
 
-function doAltTab(shellwm, binding, window, backwards) {
+function doAltTab(shellwm, binding, mask, window, backwards) {
     let settings = new Gio.Settings({ schema: SETTINGS_SCHEMA });
-
     if(settings.get_boolean(SETTINGS_FIRST_TIME_KEY)) {
         new AltTabSettingsDialog().open();
     } else {
         let behaviour = settings.get_string(SETTINGS_BEHAVIOUR_KEY);
         if(behaviour in MODES) {
-            MODES[behaviour](binding, backwards);
+            MODES[behaviour](shellwm, binding, mask, window, backwards);
         }
     }
 }
