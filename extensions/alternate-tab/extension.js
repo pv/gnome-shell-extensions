@@ -63,6 +63,97 @@ Native:\n\
     native switches the Alternate Tab extension off. \n\
 ");
 
+
+/* -----------------------------------------------------------------------------------------
+ *
+ * Settings dialog
+ *
+ * -----------------------------------------------------------------------------------------
+ */
+
+function AltTabSettingsDialog() {
+    this._init();
+}
+
+AltTabSettingsDialog.prototype = {
+    __proto__: ModalDialog.ModalDialog.prototype,
+
+    _init : function() {
+        ModalDialog.ModalDialog.prototype._init.call(this, { styleClass: null });
+
+        let mainContentBox = new St.BoxLayout({ style_class: 'polkit-dialog-main-layout',
+                                                vertical: false });
+        this.contentLayout.add(mainContentBox,
+                               { x_fill: true,
+                                 y_fill: true });
+
+        let messageBox = new St.BoxLayout({ style_class: 'polkit-dialog-message-layout',
+                                            vertical: true });
+        mainContentBox.add(messageBox,
+                           { y_align: St.Align.START });
+
+        this._subjectLabel = new St.Label({ style_class: 'polkit-dialog-headline',
+                                            text: _("Alt Tab Behaviour") });
+
+        messageBox.add(this._subjectLabel,
+                       { y_fill:  false,
+                         y_align: St.Align.START });
+
+        this._descriptionLabel = new St.Label({ style_class: 'polkit-dialog-description',
+                                                text: Gettext.gettext(MESSAGE) });
+
+        messageBox.add(this._descriptionLabel,
+                       { y_fill:  true,
+                         y_align: St.Align.START });
+
+
+        this.setButtons([
+            {
+                label: _("All & Thumbnails"),
+                action: Lang.bind(this, function() {
+                    this.setBehaviour('all_thumbnails');
+                    this.close();
+                })
+            },
+            {
+                label: _("Workspace & Icons"),
+                action: Lang.bind(this, function() {
+                    this.setBehaviour('workspace_icons');
+                    this.close();
+                })
+            },
+            {
+                label: _("Native"),
+                action: Lang.bind(this, function() {
+                    this.setBehaviour('native');
+                    this.close();
+                })
+            },
+            {
+                label: _("Cancel"),
+                action: Lang.bind(this, function() {
+                    this.close();
+                }),
+                key: Clutter.Escape
+            }
+        ]);
+    },
+
+    setBehaviour: function(behaviour) {
+           this._settings = new Gio.Settings({ schema: SETTINGS_SCHEMA });
+           this._settings.set_string(SETTINGS_BEHAVIOUR_KEY, behaviour);
+           this._settings.set_boolean(SETTINGS_FIRST_TIME_KEY, false);
+    }
+};
+
+
+/* -----------------------------------------------------------------------------------------
+ *
+ * Workspace & icons.
+ *
+ * -----------------------------------------------------------------------------------------
+ */
+
 function AltTabPopupW() {
     this._init();
 }
@@ -255,80 +346,13 @@ WindowSwitcher.prototype = {
     }
 };
 
-function AltTabSettingsDialog() {
-    this._init();
-}
 
-AltTabSettingsDialog.prototype = {
-    __proto__: ModalDialog.ModalDialog.prototype,
-
-    _init : function() {
-        ModalDialog.ModalDialog.prototype._init.call(this, { styleClass: null });
-
-        let mainContentBox = new St.BoxLayout({ style_class: 'polkit-dialog-main-layout',
-                                                vertical: false });
-        this.contentLayout.add(mainContentBox,
-                               { x_fill: true,
-                                 y_fill: true });
-
-        let messageBox = new St.BoxLayout({ style_class: 'polkit-dialog-message-layout',
-                                            vertical: true });
-        mainContentBox.add(messageBox,
-                           { y_align: St.Align.START });
-
-        this._subjectLabel = new St.Label({ style_class: 'polkit-dialog-headline',
-                                            text: _("Alt Tab Behaviour") });
-
-        messageBox.add(this._subjectLabel,
-                       { y_fill:  false,
-                         y_align: St.Align.START });
-
-        this._descriptionLabel = new St.Label({ style_class: 'polkit-dialog-description',
-                                                text: Gettext.gettext(MESSAGE) });
-
-        messageBox.add(this._descriptionLabel,
-                       { y_fill:  true,
-                         y_align: St.Align.START });
-
-
-        this.setButtons([
-            {
-                label: _("All & Thumbnails"),
-                action: Lang.bind(this, function() {
-                    this.setBehaviour('all_thumbnails');
-                    this.close();
-                })
-            },
-            {
-                label: _("Workspace & Icons"),
-                action: Lang.bind(this, function() {
-                    this.setBehaviour('workspace_icons');
-                    this.close();
-                })
-            },
-            {
-                label: _("Native"),
-                action: Lang.bind(this, function() {
-                    this.setBehaviour('native');
-                    this.close();
-                })
-            },
-            {
-                label: _("Cancel"),
-                action: Lang.bind(this, function() {
-                    this.close();
-                }),
-                key: Clutter.Escape
-            }
-        ]);
-    },
-
-    setBehaviour: function(behaviour) {
-           this._settings = new Gio.Settings({ schema: SETTINGS_SCHEMA });
-           this._settings.set_string(SETTINGS_BEHAVIOUR_KEY, behaviour);
-           this._settings.set_boolean(SETTINGS_FIRST_TIME_KEY, false);
-    }
-};
+/* -----------------------------------------------------------------------------------------
+ *
+ * All in a single list.
+ *
+ * -----------------------------------------------------------------------------------------
+ */
 
 function AltTabPopup2() {
     this._init();
